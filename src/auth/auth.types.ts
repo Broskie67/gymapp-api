@@ -46,3 +46,8 @@ export type AuthResponse = {
   user: AuthUser
   tokens: AuthTokens
 }
+
+export type StoredRefreshToken = {
+  userId: number
+  refreshToken: string
+}
