@@ -138,17 +138,25 @@ export async function logout(refreshToken: string): Promise<void> {
  * @returns An object containing the generated access token and refresh token
  */
 function generateTokens(userId: number, email: string): AuthTokens {
-  const accessToken = jwt.sign(
-    { userId, email },
-    process.env.JWT_ACCESS_SECRET as string,
-    { expiresIn: '15m' }
-  )
+  const payload: JwtPayload = {
+    userId,
+    email,
+  }
 
-  const refreshToken = jwt.sign(
-    { userId, email },
-    process.env.JWT_REFRESH_SECRET as string,
-    { expiresIn: '7d' }
-  )
+  const accessSecret = process.env.JWT_ACCESS_SECRET
+  const refreshSecret = process.env.JWT_REFRESH_SECRET
+
+  if (!accessSecret || !refreshSecret) {
+    throw new Error('JWT secrets are not configured')
+  }
+
+  const accessToken = jwt.sign(payload, accessSecret, {
+    expiresIn: '15m',
+  })
+
+  const refreshToken = jwt.sign(payload, refreshSecret, {
+    expiresIn: '7d',
+  })
 
   return {
     accessToken,
