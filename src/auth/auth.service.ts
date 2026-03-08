@@ -56,8 +56,8 @@ export async function register(data: RegisterDto): Promise<AuthResponse> {
 export async function login(data: LoginDto): Promise<AuthResponse> {
   const user = await authRepo.findUserByEmail(data.email)
 
-  if (!user){
-    throw new Error('invalid credentials')
+  if (!user) {
+    throw new Error('Invalid credentials')
   }
 
   const isPasswordValid = await bcrypt.compare(data.password, user.passwordHash)
