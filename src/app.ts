@@ -1,7 +1,6 @@
-import express, { Application, Request, Response } from 'express'
-import { env } from './env'
-import { getPool } from './db'
+import express, { Application, Request, Response, NextFunction } from 'express'
 import authRoutes from './auth/auth.routes'
+import { errorHandler } from './middlewares/error-handler'
 
 const app: Application = express()
 
@@ -11,15 +10,19 @@ app.get('/', (_req: Request, res: Response) => {
   res.send('Hello World with TypeScript and Express!')
 })
 
-app.get('/health/db', async (_req: Request, res: Response) => {
-  const pool = await getPool()
-  const result = await pool.request().query('SELECT 1 AS ok')
-  console.log("Succes")
-  res.json({ db: result.recordset[0] })
+app.get('/health/db', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { getPool } = await import('./db')
+    const pool = await getPool()
+    const result = await pool.request().query('SELECT 1 AS ok')
+    res.json({ db: result.recordset[0] })
+  } catch (error) {
+    next(error)
+  }
 })
 
 app.use('/auth', authRoutes)
 
-app.listen(env.PORT, env.HOST, () => {
-  console.log(`Server running at http://${env.HOST}:${env.PORT}`)
-})
+app.use(errorHandler)
+
+export default app

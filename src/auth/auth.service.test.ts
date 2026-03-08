@@ -39,7 +39,7 @@ describe('auth.service', () => {
   })
 
   describe('register', () => {
-    it('should throw if email is already in use', async () => {
+    it('should throw conflict if email is already in use', async () => {
       vi.mocked(authRepo.findUserByEmail).mockResolvedValue({
         id: 1,
         username: 'nathan',
@@ -53,7 +53,11 @@ describe('auth.service', () => {
           email: 'test@test.com',
           password: '123456',
         }),
-      ).rejects.toThrow('Email already in use')
+      ).rejects.toMatchObject({
+        message: 'Email already in use',
+        statusCode: 409,
+        errorType: 'Conflict',
+      })
     })
 
     it('should create user, generate tokens and return auth response', async () => {
@@ -99,7 +103,7 @@ describe('auth.service', () => {
   })
 
   describe('login', () => {
-    it('should throw if user does not exist', async () => {
+    it('should throw unauthorized if user does not exist', async () => {
       vi.mocked(authRepo.findUserByEmail).mockResolvedValue(null)
 
       await expect(
@@ -107,10 +111,14 @@ describe('auth.service', () => {
           email: 'test@test.com',
           password: '123456',
         }),
-      ).rejects.toThrow('Invalid credentials')
+      ).rejects.toMatchObject({
+        message: 'Invalid credentials',
+        statusCode: 401,
+        errorType: 'Unauthorized',
+      })
     })
 
-    it('should throw if password is invalid', async () => {
+    it('should throw unauthorized if password is invalid', async () => {
       vi.mocked(authRepo.findUserByEmail).mockResolvedValue({
         id: 1,
         username: 'nathan',
@@ -124,7 +132,11 @@ describe('auth.service', () => {
           email: 'test@test.com',
           password: '123456',
         }),
-      ).rejects.toThrow('Invalid credentials')
+      ).rejects.toMatchObject({
+        message: 'Invalid credentials',
+        statusCode: 401,
+        errorType: 'Unauthorized',
+      })
     })
 
     it('should return user and tokens when credentials are valid', async () => {
@@ -161,15 +173,19 @@ describe('auth.service', () => {
   })
 
   describe('refreshToken', () => {
-    it('should throw if refresh token does not exist', async () => {
+    it('should throw unauthorized if refresh token does not exist', async () => {
       vi.mocked(authRepo.findRefreshToken).mockResolvedValue(null)
 
       await expect(
         refreshToken({ refreshToken: 'old-token' }),
-      ).rejects.toThrow('Invalid refresh token')
+      ).rejects.toMatchObject({
+        message: 'Invalid refresh token',
+        statusCode: 401,
+        errorType: 'Unauthorized',
+      })
     })
 
-    it('should throw if linked user does not exist', async () => {
+    it('should throw unauthorized if linked user does not exist', async () => {
       vi.mocked(authRepo.findRefreshToken).mockResolvedValue({
         userId: 1,
         refreshToken: 'old-token',
@@ -178,7 +194,11 @@ describe('auth.service', () => {
 
       await expect(
         refreshToken({ refreshToken: 'old-token' }),
-      ).rejects.toThrow('User not found')
+      ).rejects.toMatchObject({
+        message: 'Invalid refresh token',
+        statusCode: 401,
+        errorType: 'Unauthorized',
+      })
     })
 
     it('should revoke old token, store new one and return new tokens', async () => {
@@ -214,6 +234,34 @@ describe('auth.service', () => {
       await logout('refresh-token')
 
       expect(authRepo.revokeRefreshToken).toHaveBeenCalledWith('refresh-token')
+    })
+  })
+
+  describe('generateTokens config', () => {
+    it('should throw internal server error if JWT secrets are missing during register', async () => {
+      delete process.env.JWT_ACCESS_SECRET
+      delete process.env.JWT_REFRESH_SECRET
+
+      vi.mocked(authRepo.findUserByEmail).mockResolvedValue(null)
+      vi.mocked(bcrypt.hash).mockResolvedValue('hashed-password' as never)
+      vi.mocked(authRepo.createUser).mockResolvedValue({
+        id: 1,
+        username: 'nathan',
+        email: 'test@test.com',
+        passwordHash: 'hashed-password',
+      })
+
+      await expect(
+        register({
+          username: 'nathan',
+          email: 'test@test.com',
+          password: '123456',
+        }),
+      ).rejects.toMatchObject({
+        message: 'JWT secrets are not configured',
+        statusCode: 500,
+        errorType: 'InternalServerError',
+      })
     })
   })
 })
