@@ -2,7 +2,7 @@ import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import * as authRepo from './auth.repo'
 import { AuthResponse, AuthTokens, JwtPayload, LoginDto, RefreshDto, RegisterDto } from './auth.types'
-import { conflict, unauthorized, notFound, internalServerError } from '../middlewares/errors'
+import { conflict, unauthorized, internalServerError } from '../middlewares/errors'
 
 /**
  * Creates a new user, generates authentication tokens,
@@ -58,13 +58,13 @@ export async function login(data: LoginDto): Promise<AuthResponse> {
   const user = await authRepo.findUserByEmail(data.email)
 
   if (!user) {
-    throw notFound('Invalid credentials')
+    throw unauthorized('Invalid credentials')
   }
 
   const isPasswordValid = await bcrypt.compare(data.password, user.passwordHash)
 
   if (!isPasswordValid) {
-    throw notFound('Invalid credentials')
+    throw unauthorized('Invalid credentials')
   }
 
   const tokens = generateTokens(user.id, user.email)
