@@ -1,9 +1,18 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import request from 'supertest'
-import { describe, it, expect, vi } from 'vitest'
+
+vi.mock('./db', () => ({
+  getPool: vi.fn(),
+}))
+
 import app from './app'
-import * as dbModule from './db'
+import { getPool } from './db'
 
 describe('app', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
   describe('GET /', () => {
     it('should return hello world message', async () => {
       const response = await request(app).get('/')
@@ -15,16 +24,12 @@ describe('app', () => {
 
   describe('GET /health/db', () => {
     it('should return database health response', async () => {
-      const query = vi.fn().mockResolvedValue({
-        recordset: [{ ok: 1 }],
-      })
-
-      const requestMock = vi.fn().mockReturnValue({
-        query,
-      })
-
-      vi.spyOn(dbModule, 'getPool').mockResolvedValue({
-        request: requestMock,
+      vi.mocked(getPool).mockResolvedValue({
+        request: vi.fn().mockReturnValue({
+          query: vi.fn().mockResolvedValue({
+            recordset: [{ ok: 1 }],
+          }),
+        }),
       } as any)
 
       const response = await request(app).get('/health/db')
@@ -36,7 +41,7 @@ describe('app', () => {
     })
 
     it('should return 500 if database check fails', async () => {
-      vi.spyOn(dbModule, 'getPool').mockRejectedValue(new Error('DB error'))
+      vi.mocked(getPool).mockRejectedValue(new Error('DB error'))
 
       const response = await request(app).get('/health/db')
 
