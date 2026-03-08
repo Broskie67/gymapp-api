@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import * as authRepo from './auth.repo'
 import { AuthResponse, AuthTokens, JwtPayload, LoginDto, RefreshDto, RegisterDto } from './auth.types'
+import { conflict, unauthorized, notFound, internalServerError } from '../middlewares/errors'
 
 /**
  * Creates a new user, generates authentication tokens,
@@ -15,7 +16,7 @@ export async function register(data: RegisterDto): Promise<AuthResponse> {
   const existingUser = await authRepo.findUserByEmail(data.email)
 
   if (existingUser) {
-    throw new Error('Email already in use')
+    throw conflict('Email already in use')
   }
 
   const passwordHash = await bcrypt.hash(data.password, 10)
@@ -57,13 +58,13 @@ export async function login(data: LoginDto): Promise<AuthResponse> {
   const user = await authRepo.findUserByEmail(data.email)
 
   if (!user) {
-    throw new Error('Invalid credentials')
+    throw notFound('Invalid credentials')
   }
 
   const isPasswordValid = await bcrypt.compare(data.password, user.passwordHash)
 
   if (!isPasswordValid) {
-    throw new Error('Invalid credentials')
+    throw notFound('Invalid credentials')
   }
 
   const tokens = generateTokens(user.id, user.email)
@@ -97,13 +98,13 @@ export async function refreshToken(data: RefreshDto): Promise<AuthTokens> {
   const savedToken = await authRepo.findRefreshToken(data.refreshToken)
 
   if (!savedToken) {
-    throw new Error('Invalid refresh token')
+    throw unauthorized('Invalid refresh token')
   }
 
   const user = await authRepo.findUserById(savedToken.userId)
 
   if (!user) {
-    throw new Error('User not found')
+    throw unauthorized('Invalid refresh token')
   }
 
   const tokens = generateTokens(user.id, user.email)
@@ -147,7 +148,7 @@ function generateTokens(userId: number, email: string): AuthTokens {
   const refreshSecret = process.env.JWT_REFRESH_SECRET
 
   if (!accessSecret || !refreshSecret) {
-    throw new Error('JWT secrets are not configured')
+    throw internalServerError('JWT secrets are not configured')
   }
 
   const accessToken = jwt.sign(payload, accessSecret, {
