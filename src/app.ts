@@ -1,7 +1,6 @@
-import express, { Application, Request, Response } from 'express'
+import express, { Application, Request, Response, NextFunction } from 'express'
 import authRoutes from './auth/auth.routes'
 import { errorHandler } from './middlewares/error-handler'
-import { getPool } from './db'
 
 const app: Application = express()
 
@@ -11,11 +10,11 @@ app.get('/', (_req: Request, res: Response) => {
   res.send('Hello World with TypeScript and Express!')
 })
 
-app.get('/health/db', async (_req: Request, res: Response, next) => {
+app.get('/health/db', async (_req: Request, res: Response, next: NextFunction) => {
   try {
+    const { getPool } = await import('./db')
     const pool = await getPool()
     const result = await pool.request().query('SELECT 1 AS ok')
-    console.log('Success')
     res.json({ db: result.recordset[0] })
   } catch (error) {
     next(error)
