@@ -2,6 +2,7 @@ import express, { Application, Request, Response } from 'express'
 import { env } from './env'
 import { getPool } from './db'
 import authRoutes from './auth/auth.routes'
+import { errorHandler } from './middlewares/error-handler'
 
 const app: Application = express()
 
@@ -19,6 +20,8 @@ app.get('/health/db', async (_req: Request, res: Response) => {
 })
 
 app.use('/auth', authRoutes)
+
+app.use(errorHandler)
 
 app.listen(env.PORT, env.HOST, () => {
   console.log(`Server running at http://${env.HOST}:${env.PORT}`)
