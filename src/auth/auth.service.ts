@@ -13,6 +13,8 @@ import { conflict, unauthorized, internalServerError } from '../middlewares/erro
  * @throws Error If the email address is already in use
  */
 export async function register(data: RegisterDto): Promise<AuthResponse> {
+  
+
   const existingUser = await authRepo.findUserByEmail(data.email)
 
   if (existingUser) {

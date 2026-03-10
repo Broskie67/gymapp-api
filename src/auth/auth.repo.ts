@@ -1,14 +1,20 @@
 import sql from 'mssql'
+import { getDb } from '../db'
 import { CreateUserInput, StoredRefreshToken, StoredUser,
 } from './auth.types'
 
 
 export async function findUserByEmail(email: string): Promise<StoredUser | null> {
-  const result = await sql.query`
-    SELECT id, username, email, passwordHash
-    FROM users
-    WHERE email = ${email}
-  `
+  const pool = await getDb()
+
+  const result = await pool
+    .request()
+    .input('email', sql.NVarChar, email)
+    .query(`
+      SELECT id, username, email, password_hash
+      FROM users
+      WHERE email = @email
+    `)
 
   if (result.recordset.length === 0) {
     return null
@@ -18,21 +24,37 @@ export async function findUserByEmail(email: string): Promise<StoredUser | null>
 }
 
 export async function createUser(data: CreateUserInput): Promise<StoredUser> {
-  const result = await sql.query`
-    INSERT INTO users (username, email, passwordHash)
-    OUTPUT INSERTED.id, INSERTED.username, INSERTED.email, INSERTED.passwordHash
-    VALUES (${data.username}, ${data.email}, ${data.passwordHash})
-  `
+  const pool = await getDb()
+
+  const result = await pool
+    .request()
+    .input('username', sql.NVarChar, data.username)
+    .input('email', sql.NVarChar, data.email)
+    .input('passwordHash', sql.NVarChar, data.passwordHash)
+    .query(`
+      INSERT INTO users (username, email, password_hash, created_at, updated_at)
+      OUTPUT INSERTED.id, INSERTED.username, INSERTED.email, INSERTED.password_hash
+      VALUES (@username, @email, @passwordHash, SYSDATETIME(), SYSDATETIME())
+    `)
 
   return result.recordset[0] as StoredUser
 }
 
 export async function findUserById(userId: number): Promise<StoredUser | null> {
-  const result = await sql.query`
-    SELECT id, username, email, passwordHash
-    FROM users
-    WHERE id = ${userId}
-  `
+  const pool = await getDb()
+
+  const result = await pool
+    .request()
+    .input('userId', sql.Int, userId)
+    .query(`
+      SELECT
+        id,
+        username,
+        email,
+        password_hash AS passwordHash
+      FROM users
+      WHERE id = @userId
+    `)
 
   if (result.recordset.length === 0) {
     return null
@@ -42,18 +64,35 @@ export async function findUserById(userId: number): Promise<StoredUser | null> {
 }
 
 export async function storeRefreshToken(userId: number, refreshToken: string): Promise<void> {
-  await sql.query`
-    INSERT INTO refresh_tokens (userId, refreshToken)
-    VALUES (${userId}, ${refreshToken})
-  `
+  const pool = await getDb()
+
+  const expiresAt = new Date()
+  expiresAt.setDate(expiresAt.getDate() + 7)
+
+  await pool
+    .request()
+    .input('userId', sql.Int, userId)
+    .input('token', sql.NVarChar(sql.MAX), refreshToken)
+    .input('expiresAt', sql.DateTime, expiresAt)
+    .query(`
+      INSERT INTO refresh_tokens (user_id, token, expires_at, revoked)
+      VALUES (@userId, @token, @expiresAt, 0)
+    `)
 }
 
 export async function findRefreshToken(refreshToken: string): Promise<StoredRefreshToken | null> {
-  const result = await sql.query`
-    SELECT userId, refreshToken
-    FROM refresh_tokens
-    WHERE refreshToken = ${refreshToken}
-  `
+  const pool = await getDb()
+
+  const result = await pool
+    .request()
+    .input('refreshToken', sql.NVarChar, refreshToken)
+    .query(`
+      SELECT
+        user_id AS userId,
+        refresh_tokens AS refreshToken
+      FROM refresh_tokens
+      WHERE refresh_tokens = @refreshToken
+    `)
 
   if (result.recordset.length === 0) {
     return null
@@ -63,8 +102,13 @@ export async function findRefreshToken(refreshToken: string): Promise<StoredRefr
 }
 
 export async function revokeRefreshToken(refreshToken: string): Promise<void> {
-  await sql.query`
-    DELETE FROM refresh_tokens
-    WHERE refreshToken = ${refreshToken}
-  `
+  const pool = await getDb()
+
+  await pool
+    .request()
+    .input('refreshToken', sql.NVarChar, refreshToken)
+    .query(`
+      DELETE FROM refresh_tokens
+      WHERE refresh_token = @refreshToken
+    `)
 }
