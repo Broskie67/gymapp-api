@@ -41,7 +41,7 @@ describe('app', () => {
     })
 
     it('should return 500 if database check fails', async () => {
-      vi.mocked(getPool).mockRejectedValue(new Error('DB error'))
+      vi.mocked(getDb).mockRejectedValue(new Error('DB error'))
 
       const response = await request(app).get('/health/db')
 
