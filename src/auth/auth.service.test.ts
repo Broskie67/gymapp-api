@@ -14,6 +14,7 @@ vi.mock('bcrypt', () => ({
 vi.mock('jsonwebtoken', () => ({
   default: {
     sign: vi.fn(),
+    verify: vi.fn(),
   },
 }))
 
@@ -210,22 +211,34 @@ describe('auth.service', () => {
     })
 
     it('should revoke old token, store new one and return new tokens', async () => {
+      vi.mocked(jwt.verify).mockReturnValue({
+        userId: 1,
+        email: 'test@test.com',
+        type: 'refresh',
+      } as never)
+
       vi.mocked(authRepo.findRefreshToken).mockResolvedValue({
         userId: 1,
         refreshToken: 'old-token',
       } as never)
+
       vi.mocked(authRepo.findUserById).mockResolvedValue({
         id: 1,
         username: 'nathan',
         email: 'test@test.com',
         passwordHash: 'hashed-password',
       })
+
       vi.mocked(jwt.sign)
         .mockReturnValueOnce('new-access-token' as never)
         .mockReturnValueOnce('new-refresh-token' as never)
 
       const result = await refreshToken({ refreshToken: 'old-token' })
 
+      expect(jwt.verify).toHaveBeenCalledWith(
+        'old-token',
+        process.env.JWT_REFRESH_SECRET
+      )
       expect(authRepo.revokeRefreshToken).toHaveBeenCalledWith('old-token')
       expect(authRepo.storeRefreshToken).toHaveBeenCalledWith(1, 'new-refresh-token')
       expect(result).toEqual({

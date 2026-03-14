@@ -98,6 +98,17 @@ export async function login(data: LoginDto): Promise<AuthResponse> {
  * @throws Error If the associated user cannot be found
  */
 export async function refreshToken(data: RefreshDto): Promise<AuthTokens> {
+  let payload: JwtPayload
+
+  try {
+    payload = jwt.verify(
+      data.refreshToken,
+      process.env.JWT_REFRESH_SECRET!
+    ) as JwtPayload
+  } catch {
+    throw unauthorized('Invalid refresh token')
+  }
+
   const savedToken = await authRepo.findRefreshToken(data.refreshToken)
 
   if (!savedToken) {
@@ -107,6 +118,10 @@ export async function refreshToken(data: RefreshDto): Promise<AuthTokens> {
   const user = await authRepo.findUserById(savedToken.userId)
 
   if (!user) {
+    throw unauthorized('Invalid refresh token')
+  }
+
+  if (user.id !== payload.userId) {
     throw unauthorized('Invalid refresh token')
   }
 
