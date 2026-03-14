@@ -6,7 +6,7 @@ vi.mock('./db', () => ({
 }))
 
 import app from './app'
-import { getPool } from './db'
+import { getDb } from './db'
 
 describe('app', () => {
   beforeEach(() => {
@@ -24,7 +24,7 @@ describe('app', () => {
 
   describe('GET /health/db', () => {
     it('should return database health response', async () => {
-      vi.mocked(getPool).mockResolvedValue({
+      vi.mocked(getDb).mockResolvedValue({
         request: vi.fn().mockReturnValue({
           query: vi.fn().mockResolvedValue({
             recordset: [{ ok: 1 }],
