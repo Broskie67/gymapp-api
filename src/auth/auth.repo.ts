@@ -20,7 +20,14 @@ export async function findUserByEmail(email: string): Promise<StoredUser | null>
     return null
   }
 
-  return result.recordset[0] as StoredUser
+  const row = result.recordset[0]
+
+  return {
+    id: row.id,
+    username: row.username,
+    email: row.email,
+    passwordHash: row.password_hash,
+  }
 }
 
 export async function createUser(data: CreateUserInput): Promise<StoredUser> {
@@ -33,11 +40,22 @@ export async function createUser(data: CreateUserInput): Promise<StoredUser> {
     .input('passwordHash', sql.NVarChar, data.passwordHash)
     .query(`
       INSERT INTO users (username, email, password_hash, created_at, updated_at)
-      OUTPUT INSERTED.id, INSERTED.username, INSERTED.email, INSERTED.password_hash
+      OUTPUT
+        INSERTED.id,
+        INSERTED.username,
+        INSERTED.email,
+        INSERTED.password_hash AS passwordHash
       VALUES (@username, @email, @passwordHash, SYSDATETIME(), SYSDATETIME())
     `)
 
-  return result.recordset[0] as StoredUser
+  const row = result.recordset[0]
+
+  return {
+    id: row.id,
+    username: row.username,
+    email: row.email,
+    passwordHash: row.passwordHash,
+  }
 }
 
 export async function findUserById(userId: number): Promise<StoredUser | null> {
@@ -60,7 +78,14 @@ export async function findUserById(userId: number): Promise<StoredUser | null> {
     return null
   }
 
-  return result.recordset[0] as StoredUser
+  const row = result.recordset[0]
+
+  return {
+    id: row.id,
+    username: row.username,
+    email: row.email,
+    passwordHash: row.passwordHash,
+  }
 }
 
 export async function storeRefreshToken(userId: number, refreshToken: string): Promise<void> {
@@ -85,20 +110,27 @@ export async function findRefreshToken(refreshToken: string): Promise<StoredRefr
 
   const result = await pool
     .request()
-    .input('refreshToken', sql.NVarChar, refreshToken)
+    .input('refreshToken', sql.NVarChar(sql.MAX), refreshToken)
     .query(`
       SELECT
         user_id AS userId,
-        refresh_tokens AS refreshToken
+        token AS refreshToken
       FROM refresh_tokens
-      WHERE refresh_tokens = @refreshToken
+      WHERE token = @refreshToken
+        AND revoked = 0
+        AND expires_at > GETUTCDATE()
     `)
 
   if (result.recordset.length === 0) {
     return null
   }
 
-  return result.recordset[0] as StoredRefreshToken
+  const row = result.recordset[0]
+
+  return {
+    userId: row.userId,
+    refreshToken: row.refreshToken,
+  }
 }
 
 export async function revokeRefreshToken(refreshToken: string): Promise<void> {
@@ -106,9 +138,39 @@ export async function revokeRefreshToken(refreshToken: string): Promise<void> {
 
   await pool
     .request()
-    .input('refreshToken', sql.NVarChar, refreshToken)
+    .input('refreshToken', sql.NVarChar(sql.MAX), refreshToken)
+    .query(`
+      UPDATE refresh_tokens
+      SET revoked = 1
+      WHERE token = @refreshToken
+    `)
+}
+
+export async function revokeAllRefreshTokensByUserId(userId: number): Promise<void> {
+  const pool = await getDb()
+  await pool
+    .request()
+    .input('userId', sql.Int, userId)
+    .query(`
+      UPDATE refresh_tokens
+      SET revoked = 1
+      WHERE user_id = @userId
+        AND revoked = 0
+    `)
+}
+
+export async function deleteRevokedOrExpiredRefreshTokensByUserId(userId: number): Promise<void> {
+  const pool = await getDb()
+
+  await pool
+    .request()
+    .input('userId', sql.Int, userId)
     .query(`
       DELETE FROM refresh_tokens
-      WHERE refresh_token = @refreshToken
+      WHERE user_id = @userId
+        AND (
+          revoked = 1
+          OR expires_at < GETUTCDATE()
+        )
     `)
 }

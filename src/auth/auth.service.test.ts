@@ -24,6 +24,8 @@ vi.mock('./auth.repo', () => ({
   storeRefreshToken: vi.fn(),
   findRefreshToken: vi.fn(),
   revokeRefreshToken: vi.fn(),
+  revokeAllRefreshTokensByUserId: vi.fn(),
+  deleteRevokedOrExpiredRefreshTokensByUserId: vi.fn(),
 }))
 
 describe('auth.service', () => {
@@ -60,7 +62,7 @@ describe('auth.service', () => {
       })
     })
 
-    it('should create user, generate tokens and return auth response', async () => {
+    it('should create user, revoke previous tokens, generate tokens and return auth response', async () => {
       vi.mocked(authRepo.findUserByEmail).mockResolvedValue(null)
       vi.mocked(bcrypt.hash).mockResolvedValue('hashed-password' as never)
       vi.mocked(authRepo.createUser).mockResolvedValue({
@@ -137,9 +139,13 @@ describe('auth.service', () => {
         statusCode: 401,
         errorType: 'Unauthorized',
       })
+
+      expect(authRepo.deleteRevokedOrExpiredRefreshTokensByUserId).not.toHaveBeenCalled()
+      expect(authRepo.revokeAllRefreshTokensByUserId).not.toHaveBeenCalled()
+      expect(authRepo.storeRefreshToken).not.toHaveBeenCalled()
     })
 
-    it('should return user and tokens when credentials are valid', async () => {
+    it('should clean old tokens, revoke active ones, store a new refresh token and return user and tokens when credentials are valid', async () => {
       vi.mocked(authRepo.findUserByEmail).mockResolvedValue({
         id: 1,
         username: 'nathan',
@@ -157,6 +163,8 @@ describe('auth.service', () => {
       })
 
       expect(bcrypt.compare).toHaveBeenCalledWith('123456', 'hashed-password')
+      expect(authRepo.deleteRevokedOrExpiredRefreshTokensByUserId).toHaveBeenCalledWith(1)
+      expect(authRepo.revokeAllRefreshTokensByUserId).toHaveBeenCalledWith(1)
       expect(authRepo.storeRefreshToken).toHaveBeenCalledWith(1, 'refresh-token')
       expect(result).toEqual({
         user: {
@@ -189,7 +197,7 @@ describe('auth.service', () => {
       vi.mocked(authRepo.findRefreshToken).mockResolvedValue({
         userId: 1,
         refreshToken: 'old-token',
-      })
+      } as never)
       vi.mocked(authRepo.findUserById).mockResolvedValue(null)
 
       await expect(
@@ -205,7 +213,7 @@ describe('auth.service', () => {
       vi.mocked(authRepo.findRefreshToken).mockResolvedValue({
         userId: 1,
         refreshToken: 'old-token',
-      })
+      } as never)
       vi.mocked(authRepo.findUserById).mockResolvedValue({
         id: 1,
         username: 'nathan',
