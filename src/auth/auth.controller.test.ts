@@ -2,7 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { register, login, refreshToken, logout } from './auth.controller'
 import * as authService from './auth.service'
 
-vi.mock('./auth.service')
+vi.mock('./auth.service', () => ({
+  register: vi.fn(),
+  login: vi.fn(),
+  refreshToken: vi.fn(),
+  logout: vi.fn(),
+}))
 
 describe('auth.controller', () => {
   let req: any

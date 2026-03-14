@@ -12,8 +12,8 @@ app.get('/', (_req: Request, res: Response) => {
 
 app.get('/health/db', async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    const { getPool } = await import('./db')
-    const pool = await getPool()
+    const { getDb } = await import('./db')
+    const pool = await getDb()
     const result = await pool.request().query('SELECT 1 AS ok')
     res.json({ db: result.recordset[0] })
   } catch (error) {

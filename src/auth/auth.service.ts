@@ -57,7 +57,7 @@ export async function register(data: RegisterDto): Promise<AuthResponse> {
 export async function login(data: LoginDto): Promise<AuthResponse> {
   const user = await authRepo.findUserByEmail(data.email)
 
-  if (!user) {
+  if (!user || !user.passwordHash) {
     throw unauthorized('Invalid credentials')
   }
 
@@ -66,6 +66,9 @@ export async function login(data: LoginDto): Promise<AuthResponse> {
   if (!isPasswordValid) {
     throw unauthorized('Invalid credentials')
   }
+
+  await authRepo.deleteRevokedOrExpiredRefreshTokensByUserId(user.id)
+  await authRepo.revokeAllRefreshTokensByUserId(user.id)
 
   const tokens = generateTokens(user.id, user.email)
 
