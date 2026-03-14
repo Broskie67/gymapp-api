@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import request from 'supertest'
 
 vi.mock('./db', () => ({
-  getPool: vi.fn(),
+  getDb: vi.fn(),
 }))
 
 import app from './app'
