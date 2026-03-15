@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken'
 import * as authRepo from './auth.repo'
 import { AuthResponse, AuthTokens, JwtPayload, LoginDto, RefreshDto, RegisterDto } from './auth.types'
 import { conflict, unauthorized, internalServerError } from '../middlewares/errors'
+import { hashToken } from '../utils/tokenHash'
 
 /**
  * Creates a new user, generates authentication tokens,
@@ -71,8 +72,9 @@ export async function login(data: LoginDto): Promise<AuthResponse> {
   await authRepo.revokeAllRefreshTokensByUserId(user.id)
 
   const tokens = generateTokens(user.id, user.email)
+  const refreshTokenhash = hashToken(tokens.refreshToken)
 
-  await authRepo.storeRefreshToken(user.id, tokens.refreshToken)
+  await authRepo.storeRefreshToken(user.id, refreshTokenhash)
 
   return {
     user: {
@@ -109,7 +111,8 @@ export async function refreshToken(data: RefreshDto): Promise<AuthTokens> {
     throw unauthorized('Invalid refresh token')
   }
 
-  const savedToken = await authRepo.findRefreshToken(data.refreshToken)
+  const refreshTokenHash = hashToken(data.refreshToken)
+  const savedToken = await authRepo.findRefreshToken(refreshTokenHash)
 
   if (!savedToken) {
     throw unauthorized('Invalid refresh token')
@@ -126,9 +129,11 @@ export async function refreshToken(data: RefreshDto): Promise<AuthTokens> {
   }
 
   const tokens = generateTokens(user.id, user.email)
+  const newRefreshToken = hashToken(tokens.refreshToken)
 
-  await authRepo.revokeRefreshToken(data.refreshToken)
-  await authRepo.storeRefreshToken(user.id, tokens.refreshToken)
+  await authRepo.revokeRefreshToken(refreshTokenHash)
+
+  await authRepo.storeRefreshToken(user.id, newRefreshToken)
 
   return tokens
 }
