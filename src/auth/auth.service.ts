@@ -129,11 +129,11 @@ export async function refreshToken(data: RefreshDto): Promise<AuthTokens> {
   }
 
   const tokens = generateTokens(user.id, user.email)
-  const newRefreshToken = hashToken(tokens.refreshToken)
+  const newRefreshTokenHash = hashToken(tokens.refreshToken)
 
   await authRepo.revokeRefreshToken(refreshTokenHash)
 
-  await authRepo.storeRefreshToken(user.id, newRefreshToken)
+  await authRepo.storeRefreshToken(user.id, newRefreshTokenHash)
 
   return tokens
 }

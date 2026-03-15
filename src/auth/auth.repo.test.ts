@@ -141,10 +141,10 @@ describe('auth.repo', () => {
     it('should execute the insert query', async () => {
       queryMock.mockResolvedValue({})
 
-      await storeRefreshToken(1, 'refresh-token')
+      await storeRefreshToken(1, 'hashed-refresh-token')
 
       expect(inputMock).toHaveBeenCalledWith('userId', expect.anything(), 1)
-      expect(inputMock).toHaveBeenCalledWith('token', expect.anything(), 'refresh-token')
+      expect(inputMock).toHaveBeenCalledWith('tokenHash', expect.anything(), 'hashed-refresh-token')
       expect(queryMock).toHaveBeenCalled()
     })
   })
@@ -155,9 +155,9 @@ describe('auth.repo', () => {
         recordset: [],
       })
 
-      const result = await findRefreshToken('refresh-token')
+      const result = await findRefreshToken('hashed-refresh-token')
 
-      expect(inputMock).toHaveBeenCalledWith('refreshToken', expect.anything(), 'refresh-token')
+      expect(inputMock).toHaveBeenCalledWith('tokenHash', expect.anything(), 'hashed-refresh-token')
       expect(result).toBeNull()
     })
 
@@ -184,9 +184,9 @@ describe('auth.repo', () => {
     it('should execute the update query', async () => {
       queryMock.mockResolvedValue({})
 
-      await revokeRefreshToken('refresh-token')
+      await revokeRefreshToken('hashed-refresh-token')
 
-      expect(inputMock).toHaveBeenCalledWith('refreshToken', expect.anything(), 'refresh-token')
+      expect(inputMock).toHaveBeenCalledWith('tokenHash', expect.anything(), 'hashed-refresh-token')
       expect(queryMock).toHaveBeenCalled()
     })
   })

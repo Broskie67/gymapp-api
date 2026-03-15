@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import * as authRepo from './auth.repo'
 import { login, logout, refreshToken, register } from './auth.service'
+import { hashToken } from '../utils/tokenHash'
 
 vi.mock('bcrypt', () => ({
   default: {
@@ -166,7 +167,7 @@ describe('auth.service', () => {
       expect(bcrypt.compare).toHaveBeenCalledWith('123456', 'hashed-password')
       expect(authRepo.deleteRevokedOrExpiredRefreshTokensByUserId).toHaveBeenCalledWith(1)
       expect(authRepo.revokeAllRefreshTokensByUserId).toHaveBeenCalledWith(1)
-      expect(authRepo.storeRefreshToken).toHaveBeenCalledWith(1, 'refresh-token')
+      expect(authRepo.storeRefreshToken).toHaveBeenCalledWith(1, hashToken('refresh-token'))
       expect(result).toEqual({
         user: {
           id: 1,
@@ -219,7 +220,7 @@ describe('auth.service', () => {
 
       vi.mocked(authRepo.findRefreshToken).mockResolvedValue({
         userId: 1,
-        refreshToken: 'old-token',
+        refreshToken: hashToken('old-token'),
       } as never)
 
       vi.mocked(authRepo.findUserById).mockResolvedValue({
@@ -239,8 +240,8 @@ describe('auth.service', () => {
         'old-token',
         process.env.JWT_REFRESH_SECRET
       )
-      expect(authRepo.revokeRefreshToken).toHaveBeenCalledWith('old-token')
-      expect(authRepo.storeRefreshToken).toHaveBeenCalledWith(1, 'new-refresh-token')
+      expect(authRepo.revokeRefreshToken).toHaveBeenCalledWith(hashToken('old-token'))
+      expect(authRepo.storeRefreshToken).toHaveBeenCalledWith(1, hashToken('new-refresh-token'))
       expect(result).toEqual({
         accessToken: 'new-access-token',
         refreshToken: 'new-refresh-token',
