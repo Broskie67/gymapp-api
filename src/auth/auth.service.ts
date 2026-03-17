@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken'
 import * as authRepo from './auth.repo'
 import { AuthResponse, AuthTokens, JwtPayload, LoginDto, RefreshDto, RegisterDto } from './auth.types'
 import { conflict, unauthorized, internalServerError } from '../middlewares/errors'
+import { hashToken } from '../utils/tokenHash'
 
 /**
  * Creates a new user, generates authentication tokens,
@@ -71,8 +72,9 @@ export async function login(data: LoginDto): Promise<AuthResponse> {
   await authRepo.revokeAllRefreshTokensByUserId(user.id)
 
   const tokens = generateTokens(user.id, user.email)
+  const refreshTokenhash = hashToken(tokens.refreshToken)
 
-  await authRepo.storeRefreshToken(user.id, tokens.refreshToken)
+  await authRepo.storeRefreshToken(user.id, refreshTokenhash)
 
   return {
     user: {
@@ -98,7 +100,19 @@ export async function login(data: LoginDto): Promise<AuthResponse> {
  * @throws Error If the associated user cannot be found
  */
 export async function refreshToken(data: RefreshDto): Promise<AuthTokens> {
-  const savedToken = await authRepo.findRefreshToken(data.refreshToken)
+  let payload: JwtPayload
+
+  try {
+    payload = jwt.verify(
+      data.refreshToken,
+      process.env.JWT_REFRESH_SECRET!
+    ) as JwtPayload
+  } catch {
+    throw unauthorized('Invalid refresh token')
+  }
+
+  const refreshTokenHash = hashToken(data.refreshToken)
+  const savedToken = await authRepo.findRefreshToken(refreshTokenHash)
 
   if (!savedToken) {
     throw unauthorized('Invalid refresh token')
@@ -110,10 +124,16 @@ export async function refreshToken(data: RefreshDto): Promise<AuthTokens> {
     throw unauthorized('Invalid refresh token')
   }
 
-  const tokens = generateTokens(user.id, user.email)
+  if (user.id !== payload.userId) {
+    throw unauthorized('Invalid refresh token')
+  }
 
-  await authRepo.revokeRefreshToken(data.refreshToken)
-  await authRepo.storeRefreshToken(user.id, tokens.refreshToken)
+  const tokens = generateTokens(user.id, user.email)
+  const newRefreshTokenHash = hashToken(tokens.refreshToken)
+
+  await authRepo.revokeRefreshToken(refreshTokenHash)
+
+  await authRepo.storeRefreshToken(user.id, newRefreshTokenHash)
 
   return tokens
 }

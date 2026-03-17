@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import * as authRepo from './auth.repo'
 import { login, logout, refreshToken, register } from './auth.service'
+import { hashToken } from '../utils/tokenHash'
 
 vi.mock('bcrypt', () => ({
   default: {
@@ -14,6 +15,7 @@ vi.mock('bcrypt', () => ({
 vi.mock('jsonwebtoken', () => ({
   default: {
     sign: vi.fn(),
+    verify: vi.fn(),
   },
 }))
 
@@ -165,7 +167,7 @@ describe('auth.service', () => {
       expect(bcrypt.compare).toHaveBeenCalledWith('123456', 'hashed-password')
       expect(authRepo.deleteRevokedOrExpiredRefreshTokensByUserId).toHaveBeenCalledWith(1)
       expect(authRepo.revokeAllRefreshTokensByUserId).toHaveBeenCalledWith(1)
-      expect(authRepo.storeRefreshToken).toHaveBeenCalledWith(1, 'refresh-token')
+      expect(authRepo.storeRefreshToken).toHaveBeenCalledWith(1, hashToken('refresh-token'))
       expect(result).toEqual({
         user: {
           id: 1,
@@ -210,24 +212,36 @@ describe('auth.service', () => {
     })
 
     it('should revoke old token, store new one and return new tokens', async () => {
+      vi.mocked(jwt.verify).mockReturnValue({
+        userId: 1,
+        email: 'test@test.com',
+        type: 'refresh',
+      } as never)
+
       vi.mocked(authRepo.findRefreshToken).mockResolvedValue({
         userId: 1,
-        refreshToken: 'old-token',
+        refreshToken: hashToken('old-token'),
       } as never)
+
       vi.mocked(authRepo.findUserById).mockResolvedValue({
         id: 1,
         username: 'nathan',
         email: 'test@test.com',
         passwordHash: 'hashed-password',
       })
+
       vi.mocked(jwt.sign)
         .mockReturnValueOnce('new-access-token' as never)
         .mockReturnValueOnce('new-refresh-token' as never)
 
       const result = await refreshToken({ refreshToken: 'old-token' })
 
-      expect(authRepo.revokeRefreshToken).toHaveBeenCalledWith('old-token')
-      expect(authRepo.storeRefreshToken).toHaveBeenCalledWith(1, 'new-refresh-token')
+      expect(jwt.verify).toHaveBeenCalledWith(
+        'old-token',
+        process.env.JWT_REFRESH_SECRET
+      )
+      expect(authRepo.revokeRefreshToken).toHaveBeenCalledWith(hashToken('old-token'))
+      expect(authRepo.storeRefreshToken).toHaveBeenCalledWith(1, hashToken('new-refresh-token'))
       expect(result).toEqual({
         accessToken: 'new-access-token',
         refreshToken: 'new-refresh-token',
