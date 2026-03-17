@@ -3,7 +3,7 @@ import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import * as authRepo from './auth.repo'
 import { login, logout, refreshToken, register } from './auth.service'
-import { hashToken } from '../utils/tokenHash'
+import { hashToken } from '../../utils/tokenHash'
 
 vi.mock('bcrypt', () => ({
   default: {

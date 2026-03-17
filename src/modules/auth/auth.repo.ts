@@ -1,5 +1,5 @@
 import sql from 'mssql'
-import { getDb } from '../db'
+import { getDb } from '../../db'
 import { CreateUserInput, StoredRefreshToken, StoredUser, } from './auth.types'
 
 

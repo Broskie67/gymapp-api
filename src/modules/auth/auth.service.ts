@@ -2,8 +2,8 @@ import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import * as authRepo from './auth.repo'
 import { AuthResponse, AuthTokens, JwtPayload, LoginDto, RefreshDto, RegisterDto } from './auth.types'
-import { conflict, unauthorized, internalServerError } from '../middlewares/errors'
-import { hashToken } from '../utils/tokenHash'
+import { conflict, unauthorized, internalServerError } from '../../middlewares/errors'
+import { hashToken } from '../../utils/tokenHash'
 
 /**
  * Creates a new user, generates authentication tokens,

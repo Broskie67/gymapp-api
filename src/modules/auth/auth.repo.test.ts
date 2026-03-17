@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { getDb } from '../db'
+import { getDb } from '../../db'
 import {
   findUserByEmail,
   createUser,
@@ -9,7 +9,7 @@ import {
   revokeRefreshToken,
 } from './auth.repo'
 
-vi.mock('../db', () => ({
+vi.mock('../../db', () => ({
   getDb: vi.fn(),
 }))
 

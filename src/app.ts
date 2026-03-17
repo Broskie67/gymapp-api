@@ -1,5 +1,5 @@
 import express, { Application, Request, Response, NextFunction } from 'express'
-import authRoutes from './auth/auth.routes'
+import authRoutes from './modules/auth/auth.routes'
 import { errorHandler } from './middlewares/error-handler'
 
 const app: Application = express()
