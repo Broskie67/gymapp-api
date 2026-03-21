@@ -1,13 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { getDb } from '../../db'
-import {
-  findUserByEmail,
-  createUser,
-  findUserById,
-  storeRefreshToken,
-  findRefreshToken,
-  revokeRefreshToken,
-} from './auth.repo'
+import { storeRefreshToken, findRefreshToken, revokeRefreshToken, revokeAllRefreshTokensByUserId, deleteRevokedOrExpiredRefreshTokensByUserId } from './auth.repo'
 
 vi.mock('../../db', () => ({
   getDb: vi.fn(),
@@ -30,111 +23,6 @@ describe('auth.repo', () => {
     vi.mocked(getDb).mockResolvedValue({
       request: requestMock,
     } as any)
-  })
-
-  describe('findUserByEmail', () => {
-    it('should return null when no user is found', async () => {
-      queryMock.mockResolvedValue({
-        recordset: [],
-      })
-
-      const result = await findUserByEmail('test@test.com')
-
-      expect(getDb).toHaveBeenCalled()
-      expect(requestMock).toHaveBeenCalled()
-      expect(inputMock).toHaveBeenCalledWith('email', expect.anything(), 'test@test.com')
-      expect(queryMock).toHaveBeenCalled()
-      expect(result).toBeNull()
-    })
-
-    it('should return the user when found', async () => {
-      queryMock.mockResolvedValue({
-        recordset: [
-          {
-            id: 1,
-            username: 'nathan',
-            email: 'test@test.com',
-            password_hash: 'hashed-password',
-          },
-        ],
-      })
-
-      const result = await findUserByEmail('test@test.com')
-
-      expect(result).toEqual({
-        id: 1,
-        username: 'nathan',
-        email: 'test@test.com',
-        passwordHash: 'hashed-password',
-      })
-    })
-  })
-
-  describe('createUser', () => {
-    it('should return the created user', async () => {
-      queryMock.mockResolvedValue({
-        recordset: [
-          {
-            id: 1,
-            username: 'nathan',
-            email: 'test@test.com',
-            passwordHash: 'hashed-password',
-          },
-        ],
-      })
-
-      const result = await createUser({
-        username: 'nathan',
-        email: 'test@test.com',
-        passwordHash: 'hashed-password',
-      })
-
-      expect(inputMock).toHaveBeenCalledWith('username', expect.anything(), 'nathan')
-      expect(inputMock).toHaveBeenCalledWith('email', expect.anything(), 'test@test.com')
-      expect(inputMock).toHaveBeenCalledWith('passwordHash', expect.anything(), 'hashed-password')
-      expect(queryMock).toHaveBeenCalled()
-      expect(result).toEqual({
-        id: 1,
-        username: 'nathan',
-        email: 'test@test.com',
-        passwordHash: 'hashed-password',
-      })
-    })
-  })
-
-  describe('findUserById', () => {
-    it('should return null when no user is found', async () => {
-      queryMock.mockResolvedValue({
-        recordset: [],
-      })
-
-      const result = await findUserById(1)
-
-      expect(inputMock).toHaveBeenCalledWith('userId', expect.anything(), 1)
-      expect(result).toBeNull()
-    })
-
-    it('should return the user when found', async () => {
-      queryMock.mockResolvedValue({
-        recordset: [
-          {
-            id: 1,
-            username: 'nathan',
-            email: 'test@test.com',
-            passwordHash: 'hashed-password',
-          },
-        ],
-      })
-
-      const result = await findUserById(1)
-
-      expect(result).toEqual({
-        id: 1,
-        username: 'nathan',
-        email: 'test@test.com',
-        passwordHash: 'hashed-password',
-      })
-    })
   })
 
   describe('storeRefreshToken', () => {
@@ -161,12 +49,12 @@ describe('auth.repo', () => {
       expect(result).toBeNull()
     })
 
-    it('should return the refresh token when found', async () => {
+    it('should return the stored refresh token when found', async () => {
       queryMock.mockResolvedValue({
         recordset: [
           {
             userId: 1,
-            refreshToken: 'refresh-token',
+            tokenHash: 'refresh-token',
           },
         ],
       })
@@ -175,7 +63,7 @@ describe('auth.repo', () => {
 
       expect(result).toEqual({
         userId: 1,
-        refreshToken: 'refresh-token',
+        tokenHash: 'refresh-token',
       })
     })
   })
@@ -187,6 +75,28 @@ describe('auth.repo', () => {
       await revokeRefreshToken('hashed-refresh-token')
 
       expect(inputMock).toHaveBeenCalledWith('tokenHash', expect.anything(), 'hashed-refresh-token')
+      expect(queryMock).toHaveBeenCalled()
+    })
+  })
+
+  describe('revokeAllRefreshTokensByUserId', () => {
+    it('should execute the update query for all user tokens', async () => {
+      queryMock.mockResolvedValue({})
+
+      await revokeAllRefreshTokensByUserId(1)
+
+      expect(inputMock).toHaveBeenCalledWith('userId', expect.anything(), 1)
+      expect(queryMock).toHaveBeenCalled()
+    })
+  })
+
+  describe('deleteRevokedOrExpiredRefreshTokensByUserId', () => {
+    it('should execute the delete query for revoked or expired tokens', async () => {
+      queryMock.mockResolvedValue({})
+
+      await deleteRevokedOrExpiredRefreshTokensByUserId(1)
+
+      expect(inputMock).toHaveBeenCalledWith('userId', expect.anything(), 1)
       expect(queryMock).toHaveBeenCalled()
     })
   })

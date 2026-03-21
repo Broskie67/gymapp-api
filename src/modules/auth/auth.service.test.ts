@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import * as authRepo from './auth.repo'
+import * as userRepo from '../users/users.repo'
 import { login, logout, refreshToken, register } from './auth.service'
 import { hashToken } from '../../utils/tokenHash'
 
@@ -20,14 +21,19 @@ vi.mock('jsonwebtoken', () => ({
 }))
 
 vi.mock('./auth.repo', () => ({
-  findUserByEmail: vi.fn(),
-  createUser: vi.fn(),
-  findUserById: vi.fn(),
   storeRefreshToken: vi.fn(),
   findRefreshToken: vi.fn(),
   revokeRefreshToken: vi.fn(),
   revokeAllRefreshTokensByUserId: vi.fn(),
   deleteRevokedOrExpiredRefreshTokensByUserId: vi.fn(),
+}))
+
+vi.mock('../users/users.repo', () => ({
+  findUserById: vi.fn(),
+  findUserByEmail: vi.fn(),
+  findStoredUserByEmail: vi.fn(),
+  findStoredUserById: vi.fn(),
+  createUser: vi.fn(),
 }))
 
 describe('auth.service', () => {
@@ -44,11 +50,12 @@ describe('auth.service', () => {
 
   describe('register', () => {
     it('should throw conflict if email is already in use', async () => {
-      vi.mocked(authRepo.findUserByEmail).mockResolvedValue({
+      vi.mocked(userRepo.findUserByEmail).mockResolvedValue({
         id: 1,
         username: 'nathan',
         email: 'test@test.com',
-        passwordHash: 'hashed',
+        createdAt: new Date(),
+        updatedAt: new Date(),
       })
 
       await expect(
@@ -65,9 +72,9 @@ describe('auth.service', () => {
     })
 
     it('should create user, revoke previous tokens, generate tokens and return auth response', async () => {
-      vi.mocked(authRepo.findUserByEmail).mockResolvedValue(null)
+      vi.mocked(userRepo.findUserByEmail).mockResolvedValue(null)
       vi.mocked(bcrypt.hash).mockResolvedValue('hashed-password' as never)
-      vi.mocked(authRepo.createUser).mockResolvedValue({
+      vi.mocked(userRepo.createUser).mockResolvedValue({
         id: 1,
         username: 'nathan',
         email: 'test@test.com',
@@ -83,14 +90,14 @@ describe('auth.service', () => {
         password: '123456',
       })
 
-      expect(authRepo.findUserByEmail).toHaveBeenCalledWith('test@test.com')
+      expect(userRepo.findUserByEmail).toHaveBeenCalledWith('test@test.com')
       expect(bcrypt.hash).toHaveBeenCalledWith('123456', 10)
-      expect(authRepo.createUser).toHaveBeenCalledWith({
+      expect(userRepo.createUser).toHaveBeenCalledWith({
         username: 'nathan',
         email: 'test@test.com',
         passwordHash: 'hashed-password',
       })
-      expect(authRepo.storeRefreshToken).toHaveBeenCalledWith(1, 'refresh-token')
+      expect(authRepo.storeRefreshToken).toHaveBeenCalledWith(1,  hashToken('refresh-token'))
 
       expect(result).toEqual({
         user: {
@@ -108,7 +115,7 @@ describe('auth.service', () => {
 
   describe('login', () => {
     it('should throw unauthorized if user does not exist', async () => {
-      vi.mocked(authRepo.findUserByEmail).mockResolvedValue(null)
+      vi.mocked(userRepo.findStoredUserByEmail).mockResolvedValue(null)
 
       await expect(
         login({
@@ -123,7 +130,7 @@ describe('auth.service', () => {
     })
 
     it('should throw unauthorized if password is invalid', async () => {
-      vi.mocked(authRepo.findUserByEmail).mockResolvedValue({
+      vi.mocked(userRepo.findStoredUserByEmail).mockResolvedValue({
         id: 1,
         username: 'nathan',
         email: 'test@test.com',
@@ -148,7 +155,7 @@ describe('auth.service', () => {
     })
 
     it('should clean old tokens, revoke active ones, store a new refresh token and return user and tokens when credentials are valid', async () => {
-      vi.mocked(authRepo.findUserByEmail).mockResolvedValue({
+      vi.mocked(userRepo.findStoredUserByEmail).mockResolvedValue({
         id: 1,
         username: 'nathan',
         email: 'test@test.com',
@@ -184,23 +191,33 @@ describe('auth.service', () => {
 
   describe('refreshToken', () => {
     it('should throw unauthorized if refresh token does not exist', async () => {
+      vi.mocked(jwt.verify).mockReturnValue({
+        userId: 1,
+        email: 'test@test.com',
+      } as never)
+
       vi.mocked(authRepo.findRefreshToken).mockResolvedValue(null)
 
       await expect(
         refreshToken({ refreshToken: 'old-token' }),
-      ).rejects.toMatchObject({
-        message: 'Invalid refresh token',
-        statusCode: 401,
-        errorType: 'Unauthorized',
+        ).rejects.toMatchObject({
+            message: 'Invalid refresh token',
+            statusCode: 401,
+            errorType: 'Unauthorized',
+        })
       })
-    })
 
     it('should throw unauthorized if linked user does not exist', async () => {
+      vi.mocked(jwt.verify).mockReturnValue({
+        userId: 1,
+        email: 'test@test.com',
+      } as never)
+          
       vi.mocked(authRepo.findRefreshToken).mockResolvedValue({
         userId: 1,
-        refreshToken: 'old-token',
+        tokenHash: hashToken('old-token'),
       } as never)
-      vi.mocked(authRepo.findUserById).mockResolvedValue(null)
+      vi.mocked(userRepo.findUserById).mockResolvedValue(null)
 
       await expect(
         refreshToken({ refreshToken: 'old-token' }),
@@ -220,14 +237,15 @@ describe('auth.service', () => {
 
       vi.mocked(authRepo.findRefreshToken).mockResolvedValue({
         userId: 1,
-        refreshToken: hashToken('old-token'),
+        tokenHash: hashToken('old-token'),
       } as never)
 
-      vi.mocked(authRepo.findUserById).mockResolvedValue({
+      vi.mocked(userRepo.findUserById).mockResolvedValue({
         id: 1,
         username: 'nathan',
         email: 'test@test.com',
-        passwordHash: 'hashed-password',
+        createdAt: new Date(),
+        updatedAt: new Date(),
       })
 
       vi.mocked(jwt.sign)
@@ -255,7 +273,7 @@ describe('auth.service', () => {
 
       await logout('refresh-token')
 
-      expect(authRepo.revokeRefreshToken).toHaveBeenCalledWith('refresh-token')
+      expect(authRepo.revokeRefreshToken).toHaveBeenCalledWith(hashToken('refresh-token') )
     })
   })
 
@@ -264,9 +282,9 @@ describe('auth.service', () => {
       delete process.env.JWT_ACCESS_SECRET
       delete process.env.JWT_REFRESH_SECRET
 
-      vi.mocked(authRepo.findUserByEmail).mockResolvedValue(null)
+      vi.mocked(userRepo.findUserByEmail).mockResolvedValue(null)
       vi.mocked(bcrypt.hash).mockResolvedValue('hashed-password' as never)
-      vi.mocked(authRepo.createUser).mockResolvedValue({
+      vi.mocked(userRepo.createUser).mockResolvedValue({
         id: 1,
         username: 'nathan',
         email: 'test@test.com',
