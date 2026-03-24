@@ -1,9 +1,10 @@
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import * as authRepo from './auth.repo'
+import * as userRepo from '../users/users.repo'
 import { AuthResponse, AuthTokens, JwtPayload, LoginDto, RefreshDto, RegisterDto } from './auth.types'
-import { conflict, unauthorized, internalServerError } from '../middlewares/errors'
-import { hashToken } from '../utils/tokenHash'
+import { conflict, unauthorized, internalServerError } from '../../middlewares/errors'
+import { hashToken } from '../../utils/tokenHash'
 
 /**
  * Creates a new user, generates authentication tokens,
@@ -14,7 +15,7 @@ import { hashToken } from '../utils/tokenHash'
  * @throws Error If the email address is already in use
  */
 export async function register(data: RegisterDto): Promise<AuthResponse> {
-  const existingUser = await authRepo.findUserByEmail(data.email)
+  const existingUser = await userRepo.findUserByEmail(data.email)
 
   if (existingUser) {
     throw conflict('Email already in use')
@@ -22,15 +23,16 @@ export async function register(data: RegisterDto): Promise<AuthResponse> {
 
   const passwordHash = await bcrypt.hash(data.password, 10)
 
-  const createdUser = await authRepo.createUser({
+  const createdUser = await userRepo.createUser({
     username: data.username,
     email: data.email,
     passwordHash,
   })
 
   const tokens = generateTokens(createdUser.id, createdUser.email)
+  const refreshTokenHash = hashToken(tokens.refreshToken)
 
-  await authRepo.storeRefreshToken(createdUser.id, tokens.refreshToken)
+  await authRepo.storeRefreshToken(createdUser.id, refreshTokenHash)
 
   return {
     user: {
@@ -56,7 +58,7 @@ export async function register(data: RegisterDto): Promise<AuthResponse> {
  * @throws Error If the email or password is invalid
  */
 export async function login(data: LoginDto): Promise<AuthResponse> {
-  const user = await authRepo.findUserByEmail(data.email)
+  const user = await userRepo.findStoredUserByEmail(data.email)
 
   if (!user || !user.passwordHash) {
     throw unauthorized('Invalid credentials')
@@ -72,9 +74,9 @@ export async function login(data: LoginDto): Promise<AuthResponse> {
   await authRepo.revokeAllRefreshTokensByUserId(user.id)
 
   const tokens = generateTokens(user.id, user.email)
-  const refreshTokenhash = hashToken(tokens.refreshToken)
+  const refreshTokenHash = hashToken(tokens.refreshToken)
 
-  await authRepo.storeRefreshToken(user.id, refreshTokenhash)
+  await authRepo.storeRefreshToken(user.id, refreshTokenHash)
 
   return {
     user: {
@@ -118,7 +120,7 @@ export async function refreshToken(data: RefreshDto): Promise<AuthTokens> {
     throw unauthorized('Invalid refresh token')
   }
 
-  const user = await authRepo.findUserById(savedToken.userId)
+  const user = await userRepo.findUserById(savedToken.userId)
 
   if (!user) {
     throw unauthorized('Invalid refresh token')
@@ -148,7 +150,8 @@ export async function refreshToken(data: RefreshDto): Promise<AuthTokens> {
  * @returns A promise that resolves when the refresh token has been revoked
  */
 export async function logout(refreshToken: string): Promise<void> {
-  await authRepo.revokeRefreshToken(refreshToken)
+  const refreshTokenHash = hashToken(refreshToken)
+  await authRepo.revokeRefreshToken(refreshTokenHash)
 }
 
 /**
