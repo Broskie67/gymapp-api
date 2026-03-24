@@ -1,3 +1,9 @@
+export type PublicUser = {
+  id: number
+  username: string
+  email: string
+}
+
 export type UserProfile = {
   id: number
   username: string
