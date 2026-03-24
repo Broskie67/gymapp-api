@@ -32,7 +32,7 @@ export async function findRefreshToken(tokenHash: string): Promise<StoredRefresh
       FROM refresh_tokens
       WHERE token_hash = @tokenHash
         AND revoked = 0
-        AND expires_at > GETUTCDATE()
+        AND expires_at > SYSUTCDATETIME()
     `)
 
   if (result.recordset.length === 0) {
@@ -84,7 +84,7 @@ export async function deleteRevokedOrExpiredRefreshTokensByUserId(userId: number
       WHERE user_id = @userId
         AND (
           revoked = 1
-          OR expires_at < GETUTCDATE()
+          OR expires_at < SYSUTCDATETIME()
         )
     `)
 }

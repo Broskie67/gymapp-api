@@ -124,7 +124,7 @@ export async function createUser(data: CreateUserInput): Promise<StoredUser> {
         INSERTED.username,
         INSERTED.email,
         INSERTED.password_hash AS passwordHash
-      VALUES (@username, @email, @passwordHash, SYSDATETIME(), SYSDATETIME())
+      VALUES (@username, @email, @passwordHash, SYSUTCDATETIME(), SYSUTCDATETIME())
     `)
 
   const row = result.recordset[0]
@@ -153,7 +153,7 @@ export async function updateUserById(
       SET
         username = COALESCE(@username, username),
         email = COALESCE(@email, email),
-        updated_at = GETUTCDATE()
+        updated_at = SYSUTCDATETIME()
       OUTPUT inserted.id, inserted.username, inserted.email, inserted.created_at, inserted.updated_at
       WHERE id = @userId
     `)
@@ -187,7 +187,7 @@ export async function updatePasswordById(
       UPDATE users
       SET
         password_hash = @passwordHash,
-        updated_at = GETUTCDATE()
+        updated_at = SYSUTCDATETIME()
       WHERE id = @userId
     `)
 

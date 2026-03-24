@@ -1,5 +1,6 @@
 import express, { Application, Request, Response, NextFunction } from 'express'
 import authRoutes from './modules/auth/auth.routes'
+import usersRoutes from './modules/users/users.routes'
 import { errorHandler } from './middlewares/error-handler'
 
 const app: Application = express()
@@ -22,6 +23,7 @@ app.get('/health/db', async (_req: Request, res: Response, next: NextFunction) =
 })
 
 app.use('/auth', authRoutes)
+app.use('/users', usersRoutes)
 
 app.use(errorHandler)
 
