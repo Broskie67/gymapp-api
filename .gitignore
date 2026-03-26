@@ -11,13 +11,17 @@
 *.sln.docstates
 *.env.development
 *.env.production
+*.env.docker
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
 node_modules
 
+dist/
+
 env
+
 # Mono auto generated files
 mono_crash.*
 
