@@ -1,1 +1,1 @@
-# gymAppBackend
+gymAppBackend is a TypeScript and Express backend for a gym app, built to handle user authentication, profile management, and secure API access. It uses JWT-based auth, integrates with SQL Server for data storage, and includes validation, error handling, protected routes, and automated tests to support a reliable and scalable foundation for a fitness application.
