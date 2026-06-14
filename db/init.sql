@@ -41,12 +41,14 @@ GO
 IF OBJECT_ID('dbo.exercises', 'U') IS NULL
 BEGIN
   CREATE TABLE dbo.exercises (
-    id INT IDENTITY(1,1) PRIMARY KEY,
-    name NVARCHAR(255) NOT NULL,
-    muscle_group NVARCHAR(100) NULL,
-    created_at DATETIME2 NOT NULL CONSTRAINT DF_exercises_created_at DEFAULT SYSUTCDATETIME(),
-    updated_at DATETIME2 NOT NULL CONSTRAINT DF_exercises_updated_at DEFAULT SYSUTCDATETIME()
-  );
+  id INT IDENTITY(1,1) PRIMARY KEY,
+  name NVARCHAR(255) NOT NULL,
+  muscle_group NVARCHAR(100) NULL,
+  exercise_type VARCHAR(100) NULL, 
+  equipment NVARCHAR(100) NULL,  
+  created_at DATETIME2 NOT NULL CONSTRAINT DF_exercises_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at DATETIME2 NOT NULL CONSTRAINT DF_exercises_updated_at DEFAULT SYSUTCDATETIME()
+);
 
   CREATE UNIQUE INDEX UX_exercises_name ON dbo.exercises(name);
 END
@@ -106,3 +108,4 @@ BEGIN
   CREATE INDEX IX_workout_schedule_user_scheduled_date ON dbo.workout_schedule(user_id, scheduled_date);
 END
 GO
+
