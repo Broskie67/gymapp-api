@@ -25,7 +25,7 @@ app.get('/health/db', async (_req: Request, res: Response, next: NextFunction) =
 
 app.use('/auth', authRoutes)
 app.use('/users', usersRoutes)
-app.use('/exercise', exerciseRoutes)
+app.use('/exercises', exerciseRoutes)
 
 app.use(errorHandler)
 
