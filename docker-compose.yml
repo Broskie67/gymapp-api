@@ -1,8 +1,8 @@
 services:
   backend:
+    build: .
     env_file:
       - .env.docker
-    build: .
     ports:
       - "3000:3000"
     environment:
@@ -10,22 +10,18 @@ services:
       HOST: 0.0.0.0
       PORT: 3000
       URL: http://localhost
-      SA_USER: ${SA_USER}
-      SA_PASSWORD: ${SA_PASSWORD}
-      SQLSERVER_SERVER: ${SQLSERVER_SERVER}
-      SQLSERVER_DATABASE: ${SQLSERVER_DATABASE}
-      SQLSERVER_PORT: ${SQLSERVER_PORT}
     depends_on:
       - sqlserver
       - db-init
 
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
+    env_file:
+      - .env.docker
     ports:
       - "14330:1433"
     environment:
       ACCEPT_EULA: "Y"
-      SA_PASSWORD: ${SA_PASSWORD}
     volumes:
       - sqlserver-data:/var/opt/mssql
 

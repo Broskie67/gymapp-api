@@ -261,8 +261,15 @@ describe('auth.service', () => {
       expect(authRepo.revokeRefreshToken).toHaveBeenCalledWith(hashToken('old-token'))
       expect(authRepo.storeRefreshToken).toHaveBeenCalledWith(1, hashToken('new-refresh-token'))
       expect(result).toEqual({
-        accessToken: 'new-access-token',
-        refreshToken: 'new-refresh-token',
+        user: {
+          id: 1,
+          username: 'nathan',
+          email: 'test@test.com',
+        },
+        tokens: {
+          accessToken: 'new-access-token',
+          refreshToken: 'new-refresh-token',
+        },
       })
     })
   })
