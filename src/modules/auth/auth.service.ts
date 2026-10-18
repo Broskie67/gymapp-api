@@ -101,7 +101,7 @@ export async function login(data: LoginDto): Promise<AuthResponse> {
  * @throws Error If the refresh token is invalid
  * @throws Error If the associated user cannot be found
  */
-export async function refreshToken(data: RefreshDto): Promise<AuthTokens> {
+export async function refreshToken(data: RefreshDto): Promise<AuthResponse> {
   let payload: JwtPayload
 
   try {
@@ -137,7 +137,14 @@ export async function refreshToken(data: RefreshDto): Promise<AuthTokens> {
 
   await authRepo.storeRefreshToken(user.id, newRefreshTokenHash)
 
-  return tokens
+  return {
+    user: {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+    },
+    tokens,
+  }
 }
 
 /**
