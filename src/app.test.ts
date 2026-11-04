@@ -2,11 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import request from 'supertest'
 
 vi.mock('./db', () => ({
-  getDb: vi.fn(),
+  query: vi.fn(),
 }))
 
 import app from './app'
-import { getDb } from './db'
+import { query } from './db'
+
+const mockQuery = vi.mocked(query)
 
 describe('app', () => {
   beforeEach(() => {
@@ -24,24 +26,16 @@ describe('app', () => {
 
   describe('GET /health/db', () => {
     it('should return database health response', async () => {
-      vi.mocked(getDb).mockResolvedValue({
-        request: vi.fn().mockReturnValue({
-          query: vi.fn().mockResolvedValue({
-            recordset: [{ ok: 1 }],
-          }),
-        }),
-      } as any)
+      mockQuery.mockResolvedValue([{ ok: 1 }])
 
       const response = await request(app).get('/health/db')
 
       expect(response.status).toBe(200)
-      expect(response.body).toEqual({
-        db: { ok: 1 },
-      })
+      expect(response.body).toEqual({ db: { ok: 1 } })
     })
 
     it('should return 500 if database check fails', async () => {
-      vi.mocked(getDb).mockRejectedValue(new Error('DB error'))
+      mockQuery.mockRejectedValue(new Error('DB error'))
 
       const response = await request(app).get('/health/db')
 

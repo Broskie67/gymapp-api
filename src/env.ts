@@ -15,10 +15,5 @@ export const env = {
   URL: process.env.URL ?? 'http://localhost',
   HOST: process.env.HOST ?? 'localhost',
   PORT: Number(process.env.PORT ?? 3000),
-
-  SA_USER: getRequiredEnv('SA_USER'),
-  SA_PASSWORD: getRequiredEnv('SA_PASSWORD'),
-  SQLSERVER_SERVER: getRequiredEnv('SQLSERVER_SERVER'),
-  SQLSERVER_DATABASE: getRequiredEnv('SQLSERVER_DATABASE'),
-  SQLSERVER_PORT: Number(process.env.SQLSERVER_PORT ?? 1433),
+  DATABASE_URL: process.env.DATABASE_URL
 } as const

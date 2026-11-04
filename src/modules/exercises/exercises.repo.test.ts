@@ -1,38 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { listExercises, findExerciseById } from './exercises.repo'
+import { query } from '../../db'
 
 vi.mock('../../db', () => ({
-  getDb: vi.fn(),
+  query: vi.fn(),
 }))
-
-vi.mock('mssql', () => ({
-  default: {
-    Int: 'INT',
-  },
-}))
-
-import { getDb } from '../../db'
-
-const mockQuery = vi.fn()
-const mockInput = vi.fn()
-const mockRequest = vi.fn()
+const mockQuery = vi.mocked(query)
 
 beforeEach(() => {
   vi.clearAllMocks()
-
-  mockInput.mockReturnValue({ query: mockQuery })
-  mockRequest.mockReturnValue({ input: mockInput, query: mockQuery })
-  vi.mocked(getDb).mockResolvedValue({ request: mockRequest } as any)
 })
 
 describe('listExercises', () => {
   it('should return a list of exercises', async () => {
-    mockQuery.mockResolvedValue({
-      recordset: [
+    mockQuery.mockResolvedValue([
         { id: 1, name: 'Barbell Bench Press', muscle_group: 'Chest' },
         { id: 2, name: 'Barbell Curl', muscle_group: 'Arms' },
-      ],
-    })
+      ])
 
     const result = await listExercises()
 
@@ -44,7 +28,7 @@ describe('listExercises', () => {
   })
 
   it('should return an empty array when no exercises exist', async () => {
-    mockQuery.mockResolvedValue({ recordset: [] })
+    mockQuery.mockResolvedValue([])
 
     const result = await listExercises()
 
@@ -55,41 +39,30 @@ describe('listExercises', () => {
 describe('findExerciseById', () => {
   it('should return an exercise when found', async () => {
     const now = new Date()
+    const exercise = {
+      id: 1,
+      name: 'Barbell Bench Press',
+      muscle_group: 'Chest',
+      exercise_type: 'Compound',
+      equipment: 'Barbell',
+      created_at: now,
+      updated_at: now,
+    }
 
-    mockQuery.mockResolvedValue({
-      recordset: [
-        {
-          id: 1,
-          name: 'Barbell Bench Press',
-          muscle_group: 'Chest',
-          exercise_type: 'Compound',
-          equipment: 'Barbell',
-          created_at: now,
-          updated_at: now,
-        },
-      ],
-    })
+    mockQuery.mockResolvedValue([exercise])
 
     const result = await findExerciseById(1)
 
-    expect(result).toEqual({
-      id: 1,
-      name: 'Barbell Bench Press',
-      muscleGroup: 'Chest',
-      exerciseType: 'Compound',
-      equipment: 'Barbell',
-      createdAt: now,
-      updatedAt: now,
-    })
-    expect(mockInput).toHaveBeenCalledWith('exerciseId', 'INT', 1)
+    expect(result).toEqual(exercise)
+    expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining('WHERE id = $1'), [1])
   })
 
   it('should return null when exercise is not found', async () => {
-    mockQuery.mockResolvedValue({ recordset: [] })
+    mockQuery.mockResolvedValue([])
 
     const result = await findExerciseById(99)
 
     expect(result).toBeNull()
-    expect(mockInput).toHaveBeenCalledWith('exerciseId', 'INT', 99)
+    expect(mockQuery).toHaveBeenCalledWith(expect.any(String), [99])
   })
 })
