@@ -10,34 +10,31 @@ services:
       HOST: 0.0.0.0
       PORT: 3000
       URL: http://localhost
+      # "postgres" = nom du service ci-dessous, pas localhost
+      DATABASE_URL: postgresql://postgres:dev@postgres:5432/gymdb
     depends_on:
-      - sqlserver
-      - db-init
-
-  sqlserver:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    env_file:
-      - .env.docker
-    ports:
-      - "14330:1433"
+      postgres:
+        condition: service_healthy
+ 
+  postgres:
+    image: postgres:17
     environment:
-      ACCEPT_EULA: "Y"
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: dev
+      POSTGRES_DB: gymdb
+    ports:
+      - "5433:5432"
     volumes:
-      - sqlserver-data:/var/opt/mssql
-
-  db-init:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    env_file:
-      - .env.docker
-    depends_on:
-      - sqlserver
-    volumes:
-      - ./db:/db
-    entrypoint: /bin/bash
-    command: -c "until /opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P \"$SA_PASSWORD\" -C -Q 'SELECT 1' > /dev/null 2>&1; do sleep 2; done; /opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P \"$SA_PASSWORD\" -C -i /db/init.sql"
-
+      - postgres-data:/var/lib/postgresql/data
+      # Exécuté automatiquement au premier démarrage (volume vide)
+      - ./db/schema-postgres.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d gymdb"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+ 
 volumes:
-  sqlserver-data:
-
-
+  postgres-data:
+ 
       
