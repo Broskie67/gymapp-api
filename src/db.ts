@@ -1,25 +1,18 @@
-import sql from "mssql";
+import { Pool, QueryResultRow } from "pg";
 import { env } from "./env";
 
-const dbConfig: sql.config = {
-  user: env.SA_USER,
-  password: env.SA_PASSWORD,
-  server: env.SQLSERVER_SERVER,
-  database: env.SQLSERVER_DATABASE,
-  port: env.SQLSERVER_PORT,
-  options: {
-    encrypt: false,
-    trustServerCertificate: true,
-  },
-};
-
-let pool: sql.ConnectionPool | null = null;
+export const pool = new Pool({
+  connectionString: env.DATABASE_URL,
+});
 
 export async function getDb() {
-  if (pool) {
-    return pool;
-  }
-
-  pool = await new sql.ConnectionPool(dbConfig).connect();
   return pool;
+}
+
+export async function query<T extends QueryResultRow = any>(
+  text: string,
+  params: unknown[] = []
+) {
+  const result = await pool.query<T>(text, params);
+  return result.rows;
 }

@@ -3,6 +3,7 @@ import authRoutes from './modules/auth/auth.routes'
 import usersRoutes from './modules/users/users.routes'
 import exerciseRoutes from './modules/exercises/exercises.routes'
 import { errorHandler } from './middlewares/error-handler'
+import { query } from './db'
 
 const app: Application = express()
 
@@ -14,10 +15,8 @@ app.get('/', (_req: Request, res: Response) => {
 
 app.get('/health/db', async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    const { getDb } = await import('./db')
-    const pool = await getDb()
-    const result = await pool.request().query('SELECT 1 AS ok')
-    res.json({ db: result.recordset[0] })
+    const [row] = await query('SELECT 1 AS ok')
+    res.json({ db: row})
   } catch (error) {
     next(error)
   }

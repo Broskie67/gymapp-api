@@ -1,103 +1,79 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { getDb } from '../../db'
+import { query } from '../../db'
 import { storeRefreshToken, findRefreshToken, revokeRefreshToken, revokeAllRefreshTokensByUserId, deleteRevokedOrExpiredRefreshTokensByUserId } from './auth.repo'
 
 vi.mock('../../db', () => ({
-  getDb: vi.fn(),
+  query: vi.fn(),
 }))
 
+const mockQuery = vi.mocked(query)
+
 describe('auth.repo', () => {
-  const queryMock = vi.fn()
-  const inputMock = vi.fn()
-  const requestMock = vi.fn()
+
 
   beforeEach(() => {
     vi.clearAllMocks()
-
-    inputMock.mockReturnThis()
-    requestMock.mockReturnValue({
-      input: inputMock,
-      query: queryMock,
-    })
-
-    vi.mocked(getDb).mockResolvedValue({
-      request: requestMock,
-    } as any)
+    mockQuery.mockResolvedValue([])
   })
 
   describe('storeRefreshToken', () => {
-    it('should execute the insert query', async () => {
-      queryMock.mockResolvedValue({})
-
+    it('should insert the token with an expiry date', async () => {
       await storeRefreshToken(1, 'hashed-refresh-token')
 
-      expect(inputMock).toHaveBeenCalledWith('userId', expect.anything(), 1)
-      expect(inputMock).toHaveBeenCalledWith('tokenHash', expect.anything(), 'hashed-refresh-token')
-      expect(queryMock).toHaveBeenCalled()
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO refresh_tokens'),
+        [1, 'hashed-refresh-token', expect.any(Date)]
+      )
     })
   })
 
   describe('findRefreshToken', () => {
     it('should return null when token is not found', async () => {
-      queryMock.mockResolvedValue({
-        recordset: [],
-      })
-
       const result = await findRefreshToken('hashed-refresh-token')
 
-      expect(inputMock).toHaveBeenCalledWith('tokenHash', expect.anything(), 'hashed-refresh-token')
+      expect(mockQuery).toHaveBeenCalledWith(expect.any(String), ['hashed-refresh-token'])
       expect(result).toBeNull()
     })
 
     it('should return the stored refresh token when found', async () => {
-      queryMock.mockResolvedValue({
-        recordset: [
-          {
-            userId: 1,
-            tokenHash: 'refresh-token',
-          },
-        ],
-      })
+      mockQuery.mockResolvedValue([{ userId: 1, tokenHash: 'refresh-token' }])
 
       const result = await findRefreshToken('refresh-token')
 
-      expect(result).toEqual({
-        userId: 1,
-        tokenHash: 'refresh-token',
-      })
+      expect(result).toEqual({ userId: 1, tokenHash: 'refresh-token' })
     })
   })
 
   describe('revokeRefreshToken', () => {
-    it('should execute the update query', async () => {
-      queryMock.mockResolvedValue({})
-
+    it('should mark the token as revoked', async () => {
       await revokeRefreshToken('hashed-refresh-token')
 
-      expect(inputMock).toHaveBeenCalledWith('tokenHash', expect.anything(), 'hashed-refresh-token')
-      expect(queryMock).toHaveBeenCalled()
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringContaining('revoked = true'),
+        ['hashed-refresh-token']
+      )
     })
   })
 
   describe('revokeAllRefreshTokensByUserId', () => {
-    it('should execute the update query for all user tokens', async () => {
-      queryMock.mockResolvedValue({})
-
+    it('should revoke all tokens for the user', async () => {
       await revokeAllRefreshTokensByUserId(1)
 
-      expect(inputMock).toHaveBeenCalledWith('userId', expect.anything(), 1)
-      expect(queryMock).toHaveBeenCalled()
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringContaining('revoked = true'),
+        [1]
+      )
     })
   })
 
   describe('deleteRevokedOrExpiredRefreshTokensByUserId', () => {
-    it('should execute the delete query for revoked or expired tokens', async () => {
-      queryMock.mockResolvedValue({})
-
+    it('should delete revoked or expired tokens for the user', async () => {
       await deleteRevokedOrExpiredRefreshTokensByUserId(1)
 
-      expect(inputMock).toHaveBeenCalledWith('userId', expect.anything(), 1)
-      expect(queryMock).toHaveBeenCalled()
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringContaining('DELETE FROM refresh_tokens'),
+        [1]
+      )
     })
   })
 })
